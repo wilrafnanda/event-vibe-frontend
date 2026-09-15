@@ -1,116 +1,259 @@
-import Link from "next/link";
+'use client';
 
-export default function LoginPage() {
+import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Alert from "@/components/ui/Alert";
+import Button from "@/components/ui/Button";
+import InputField from "@/components/ui/InputField";
+import AuthHeader from "@/components/auth/AuthHeader";
+import AuthFooter from "@/components/auth/AuthFooter";
+
+interface FormData {
+  name: string;
+  email: string;
+  password: string;
+  agreeTerms: boolean;
+}
+
+interface FieldErrors {
+  name?: string;
+  email?: string;
+  password?: string;
+  agreeTerms?: string;
+}
+
+export default function SignupPage() {
+  const router = useRouter();
+
+  const [formData, setFormData] = useState<FormData>({
+    name: "",
+    email: "",
+    password: "",
+    agreeTerms: false,
+  });
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+
+    // Clear server and field-specific errors upon user edit
+    if (serverError) setServerError(null);
+    if (fieldErrors[name as keyof FieldErrors]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const validateClientSide = (): boolean => {
+    const errors: FieldErrors = {};
+
+    if (!formData.name.trim()) {
+      errors.name = "Full name is required";
+    }
+
+    if (!formData.email.trim()) {
+      errors.email = "Email address is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.password) {
+      errors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+
+    if (!formData.agreeTerms) {
+      errors.agreeTerms = "You must accept the Terms and Privacy Policy to continue";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    setServerError(null);
+    setFieldErrors({});
+    setSuccessMessage(null);
+
+    if (!validateClientSide()) return;
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        // Backend validation errors array or object
+        if (data?.errors) {
+          if (Array.isArray(data.errors)) {
+            const mappedErrors: FieldErrors = {};
+            data.errors.forEach((err: { path?: string; param?: string; msg?: string; message?: string }) => {
+              const fieldName = (err.path || err.param) as keyof FieldErrors;
+              if (fieldName) {
+                mappedErrors[fieldName] = err.msg || err.message || "Invalid value";
+              }
+            });
+            setFieldErrors(mappedErrors);
+          } else if (typeof data.errors === "object") {
+            setFieldErrors(data.errors);
+          }
+        }
+
+        const errorMessage =
+          data?.message ||
+          data?.error ||
+          "Registration failed. Please check your details and try again.";
+
+        setServerError(errorMessage);
+        return;
+      }
+
+      const successMsg = data?.message || "Account created successfully! Redirecting...";
+      setSuccessMessage(successMsg);
+
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        agreeTerms: false,
+      });
+
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1500);
+    } catch (error) {
+      console.error("Signup error:", error);
+      setServerError(
+        "Unable to connect to the server. Please check your connection or try again later."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-md my-auto py-2 sm:py-4">
-      <div className="mb-5 text-center lg:text-left">
-        <div className="lg:hidden mb-4">
-          <Link href="/" className="text-2xl font-bold tracking-tighter text-ink">
-            Event<span className="text-primary">Vibe</span>
-          </Link>
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1.5 text-ink">
-          Create  account
-        </h1>
-        <p className="text-muted text-xs sm:text-sm">
-          Join the vibe. It only takes a minute.
-        </p>
-      </div>
+      <AuthHeader
+        title="Create account"
+        subtitle="Join the vibe. It only takes a minute."
+      />
 
-      <div className="space-y-3 mb-5">
-        <button
-          type="button"
-          className="w-full flex items-center justify-center gap-3 bg-surface hover:bg-ghost border border-border text-ink transition-colors py-2.5 rounded-xl font-medium text-xs sm:text-sm shadow-xs"
-        >
-          <i className="fa-brands fa-google text-base sm:text-lg"></i>
-          Sign up with Google
-        </button>
-      </div>
+      <Alert type="error" message={serverError} onClose={() => setServerError(null)} />
+      <Alert type="success" message={successMessage} />
 
-      <div className="relative flex items-center gap-4 mb-5">
-        <div className="flex-1 h-px bg-border"></div>
-        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-muted">
-          or use email
-        </span>
-        <div className="flex-1 h-px bg-border"></div>
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>
+        <InputField
+          label="Full Name"
+          name="name"
+          type="text"
+          placeholder="raphael william"
+          icon="fa-solid fa-user"
+          value={formData.name}
+          onChange={handleChange}
+          error={fieldErrors.name}
+          disabled={isLoading}
+        />
 
-      <form className="space-y-3.5">
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-widest text-muted mb-1.5">
-            Full Name
-          </label>
-          <div className="relative">
-            <i className="fa-solid fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs sm:text-sm"></i>
+        <InputField
+          label="Email Address"
+          name="email"
+          type="email"
+          placeholder="name@example.com"
+          icon="fa-solid fa-envelope"
+          value={formData.email}
+          onChange={handleChange}
+          error={fieldErrors.email}
+          disabled={isLoading}
+        />
+
+        <InputField
+          label="Password"
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          icon="fa-solid fa-lock"
+          value={formData.password}
+          onChange={handleChange}
+          error={fieldErrors.password}
+          disabled={isLoading}
+        />
+
+        <div className="py-1">
+          <div className="flex items-start gap-2.5">
             <input
-              type="text"
-              placeholder="John Doe"
-              className="w-full bg-ghost border border-border rounded-xl py-2.5 pl-10 pr-4 outline-none focus:border-primary focus:bg-surface transition-colors text-ink placeholder:text-muted/60 text-xs sm:text-sm"
+              type="checkbox"
+              id="agreeTerms"
+              name="agreeTerms"
+              checked={formData.agreeTerms}
+              onChange={handleChange}
+              disabled={isLoading}
+              className="mt-0.5 accent-primary cursor-pointer disabled:cursor-not-allowed"
             />
+            <label
+              htmlFor="agreeTerms"
+              className="text-[11px] sm:text-xs text-muted leading-relaxed cursor-pointer select-none"
+            >
+              I agree to the{" "}
+              <Link
+                href="#"
+                className="text-ink font-semibold hover:text-primary transition-colors underline underline-offset-2"
+              >
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link
+                href="#"
+                className="text-ink font-semibold hover:text-primary transition-colors underline underline-offset-2"
+              >
+                Privacy Policy
+              </Link>
+              .
+            </label>
           </div>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-widest text-muted mb-1.5">
-            Email Address
-          </label>
-          <div className="relative">
-            <i className="fa-solid fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs sm:text-sm"></i>
-            <input
-              type="email"
-              placeholder="name@example.com"
-              className="w-full bg-ghost border border-border rounded-xl py-2.5 pl-10 pr-4 outline-none focus:border-primary focus:bg-surface transition-colors text-ink placeholder:text-muted/60 text-xs sm:text-sm"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-widest text-muted mb-1.5">
-            Password
-          </label>
-          <div className="relative">
-            <i className="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-muted text-xs sm:text-sm"></i>
-            <input
-              type="password"
-              placeholder="••••••••"
-              className="w-full bg-ghost border border-border rounded-xl py-2.5 pl-10 pr-4 outline-none focus:border-primary focus:bg-surface transition-colors text-ink placeholder:text-muted/60 text-xs sm:text-sm"
-            />
-          </div>
+          {fieldErrors.agreeTerms && (
+            <p className="text-[11px] text-red-500 mt-1 pl-1 font-medium">
+              {fieldErrors.agreeTerms}
+            </p>
+          )}
         </div>
 
-        <div className="flex items-start gap-2.5 py-1">
-          <input type="checkbox" id="terms" className="mt-0.5 accent-primary cursor-pointer" />
-          <label htmlFor="terms" className="text-[11px] sm:text-xs text-muted leading-relaxed cursor-pointer select-none">
-            I agree to the{" "}
-            <Link href="#" className="text-ink font-semibold hover:text-primary transition-colors underline underline-offset-2">
-              Terms of Service
-            </Link>{" "}
-            and{" "}
-            <Link href="#" className="text-ink font-semibold hover:text-primary transition-colors underline underline-offset-2">
-              Privacy Policy
-            </Link>
-            .
-          </label>
-        </div>
-
-        <button
+        <Button
           type="submit"
-          className="w-full bg-primary hover:bg-[#a333ff] text-paper py-2.5 sm:py-3 rounded-xl font-bold transition-all transform hover:scale-[1.01] active:scale-95 shadow-lg shadow-primary/20 text-xs sm:text-sm mt-1 cursor-pointer"
+          isLoading={isLoading}
+          loadingText="Creating Account..."
+          className="mt-1"
         >
           Create Account
-        </button>
+        </Button>
       </form>
 
-      <p className="text-center mt-5 text-muted text-xs sm:text-sm">
-        Already have an account?{" "}
-        <Link
-          href="/auth/login"
-          className="text-ink font-bold hover:text-primary transition-colors"
-        >
-          login
-        </Link>
-      </p>
+      <AuthFooter
+        promptText="Already have an account?"
+        linkText="Login"
+        linkHref="/auth/login"
+      />
     </div>
   );
 }
-
-
-
