@@ -1,6 +1,5 @@
 'use client';
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Alert from "@/components/ui/Alert";
@@ -12,7 +11,6 @@ import AuthFooter from "@/components/auth/AuthFooter";
 interface FormData {
   email: string;
   password: string;
-  rememberMe: boolean;
 }
 
 interface FieldErrors {
@@ -26,7 +24,6 @@ export default function LoginPage() {
   const [formData, setFormData] = useState<FormData>({
     email: "",
     password: "",
-    rememberMe: false,
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -37,7 +34,7 @@ export default function LoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
 
-    // Clear previous errors when user modifies input
+    // Clear server and field-specific errors upon user edit
     if (serverError) setServerError(null);
     if (fieldErrors[name as keyof FieldErrors]) {
       setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
@@ -60,6 +57,8 @@ export default function LoginPage() {
 
     if (!formData.password) {
       errors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
     }
 
     setFieldErrors(errors);
@@ -78,11 +77,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: formData.email.trim(),
+          email: formData.email.trim().toLowerCase(),
           password: formData.password,
         }),
       });
@@ -90,6 +90,7 @@ export default function LoginPage() {
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
+        // Backend validation errors array or object
         if (data?.errors) {
           if (Array.isArray(data.errors)) {
             const mappedErrors: FieldErrors = {};
@@ -108,25 +109,34 @@ export default function LoginPage() {
         const errorMessage =
           data?.message ||
           data?.error ||
-          "Invalid email or password. Please try again.";
+          (response.status === 401
+            ? "Invalid email or password. Check your credentials or create an account first."
+            : "Login failed. Please check your details and try again.");
 
         setServerError(errorMessage);
         return;
       }
 
-      if (data?.token) localStorage.setItem("authToken", data.token);
-      if (data?.user) localStorage.setItem("user", JSON.stringify(data.user));
+      const token = data?.token || data?.accessToken;
+      if (token) {
+        localStorage.setItem("authToken", token);
+      }
 
-      const successMsg = data?.message || "Login successful! Welcome back.";
+      const successMsg = data?.message || "Login successful. Redirecting...";
       setSuccessMessage(successMsg);
 
+      setFormData({
+        email: "",
+        password: "",
+      });
+
       setTimeout(() => {
-        router.push("/");
-      }, 1000);
+        router.push("/search");
+      }, 1500);
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("login error:", error);
       setServerError(
-        "Unable to connect to the server. Please check your connection and try again."
+        "Unable to connect to the server. Please check your connection or try again later."
       );
     } finally {
       setIsLoading(false);
@@ -135,10 +145,7 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-md my-auto py-2 sm:py-4">
-      <AuthHeader
-        title="Login to Your Account"
-        subtitle="Welcome back! Please enter your details."
-      />
+      <AuthHeader title="Welcome back" subtitle="Sign in to find your next vibe." />
 
       <Alert type="error" message={serverError} onClose={() => setServerError(null)} />
       <Alert type="success" message={successMessage} />
@@ -166,45 +173,19 @@ export default function LoginPage() {
           onChange={handleChange}
           error={fieldErrors.password}
           disabled={isLoading}
-          rightAction={
-            <Link
-              href="#"
-              className="text-[11px] text-muted hover:text-primary transition-colors"
-            >
-              Forgot password?
-            </Link>
-          }
         />
 
-        <div className="flex items-center gap-2.5 py-1">
-          <input
-            type="checkbox"
-            id="rememberMe"
-            name="rememberMe"
-            checked={formData.rememberMe}
-            onChange={handleChange}
-            disabled={isLoading}
-            className="accent-primary cursor-pointer disabled:cursor-not-allowed"
-          />
-          <label
-            htmlFor="rememberMe"
-            className="text-[11px] sm:text-xs text-muted cursor-pointer select-none"
-          >
-            Remember me on this device
-          </label>
-        </div>
-
-        <Button
+       <Button
           type="submit"
           isLoading={isLoading}
-          loadingText="Signing In..."
+          loadingText="Signing in..."
           className="mt-1"
         >
           Sign In
         </Button>
       </form>
 
-      <AuthFooter
+     <AuthFooter
         promptText="Don't have an account?"
         linkText="Sign up"
         linkHref="/auth/signup"

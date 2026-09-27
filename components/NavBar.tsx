@@ -2,21 +2,21 @@
 
 import Link from "next/link";
 
+
  
 export default function NavBar() {
+
     return (
     <nav
       className=" fixed top-6 left-1/2 -translate-x-1/2 z-1000 0 w-[90%] max-w-7xl bg-white/80 backdrop-blur-md rounded-4xl px-8 py-4 flex justify-between items-center border border-border shadow-xl"
     >
       <div className="flex items-center gap-8">
-        <Link href="/" className="text-xl font-bold tracking-tighter">
+        <Link href="/" className="text-3xl font-bold tracking-tighter">
           Event<span className="text-primary">Vibe</span>
         </Link>
         <div className="hidden md:flex gap-6 text-sm font-medium">
-          <Link href="#" className="relative nav-link-underline pb-1 flex items-center gap-2 font-semibold">
-            Discover
-          </Link>
-          <Link href="Search__desktop.html" className="relative nav-link-underline pb-1 font-semibold">
+         
+          <Link href="/search/" className="relative nav-link-underline pb-1 font-semibold">
             Event Search
           </Link>
          
