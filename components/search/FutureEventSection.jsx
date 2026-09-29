@@ -3,96 +3,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import EventCard from './EventCard';
 
-const DEFAULT_EVENTS = [
-  {
-    id: '1',
-    title: 'HENRY ATE CELEBRATES 30 YEARS OF SLAP IN THE FACE ANNIVERSARY TOUR',
-    date: 'Vendredi 13 Novembre',
-    location: 'Railways Cafe Irene, Pretoria',
-    status: 'En vente dès maintenant',
-    image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=800&auto=format&fit=crop',
-    category: 'Concert',
-    price: '250 ZAR',
-  },
-  {
-    id: '2',
-    title: 'NarowBi: Party + Market',
-    date: 'samedi 26 septembre',
-    location: 'Flame Studios, Constitution Hill, Johannesburg',
-    status: 'En vente dès maintenant',
-    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=800&auto=format&fit=crop',
-    category: 'Festival',
-    price: '180 ZAR',
-  },
-  {
-    id: '3',
-    title: "Lover's Rock Festival 2027",
-    date: 'samedi 13 février 2027',
-    location: "Gillooly's Garden, Johannesburg",
-    status: 'En vente dès maintenant',
-    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=800&auto=format&fit=crop',
-    category: 'Reggae & Soul',
-    price: '350 ZAR',
-  },
-  {
-    id: '4',
-    title: 'AFRO SOUNDWAVE SUMMER FESTIVAL',
-    date: 'vendredi 18 décembre',
-    location: 'The Grand Arena, Cape Town',
-    status: 'En vente dès maintenant',
-    image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop',
-    category: 'Live Music',
-    price: '300 ZAR',
-  },
-  {
-    id: '5',
-    title: 'MIDNIGHT GROOVE & ELECTRONIC NIGHTS',
-    date: 'samedi 09 janvier 2027',
-    location: 'Altitude Beach Club, Fourways',
-    status: 'En vente dès maintenant',
-    image: 'https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?q=80&w=800&auto=format&fit=crop',
-    category: 'Nightlife',
-    price: '220 ZAR',
-  },
-  {
-    id: '6',
-    title: 'JAZZ UNDER THE STARS: SYMPHONY EDITION',
-    date: 'dimanche 24 janvier 2027',
-    location: 'Botanical Gardens, Pretoria',
-    status: 'En vente dès maintenant',
-    image: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?q=80&w=800&auto=format&fit=crop',
-    category: 'Jazz',
-    price: '280 ZAR',
-  },
-];
-
-/**
- * FutureEventSection with Infinite Scrolling Carousel
- * @param {Object} props
- * @param {string} [props.title="Featured events"] - Section title
- * @param {string} [props.subtitle] - Optional subtitle description
- * @param {Array} [props.events] - Custom list of event objects
- * @param {boolean} [props.autoplay=false] - Auto scroll carousel
- * @param {number} [props.autoplaySpeed=4000] - Autoplay interval in milliseconds
- * @param {string} [props.className=""] - Additional section wrapper styling
- */
 export default function FutureEventSection({
   title = 'Featured events',
   subtitle,
-  events = DEFAULT_EVENTS,
-  autoplay = false,
-  autoplaySpeed = 6000,
+  autoplay = true,
+  autoplaySpeed = 1000,
   className = '',
 }) {
-  const rawEvents = events && events.length > 0 ? events : DEFAULT_EVENTS;
-  const count = rawEvents.length;
+  // 1. State to store the events from the backend
+  const [featuredEvents, setFeaturedEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Clone 3 sets for true infinite circular buffer
-  const extendedEvents = [...rawEvents, ...rawEvents, ...rawEvents];
-
-  // Start at the beginning of the middle cloned set
-  const [currentIndex, setCurrentIndex] = useState(count);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  // 2. Carousel index & responsive visible cards
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [visibleCards, setVisibleCards] = useState(3);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -101,16 +24,66 @@ export default function FutureEventSection({
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
 
-  // Responsive calculation for number of visible cards
+  // 3. Fetch public events from API on mount
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch('http://localhost:5000/api/events/public');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const json = await res.json();
+        // The API returns { success: true, data: [...] } or array directly
+        const eventsArray = Array.isArray(json)
+          ? json
+          : json.data || json.events || [];
+
+        setFeaturedEvents(eventsArray);
+      } catch (err) {
+        console.error('Failed to fetch public events:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvents();
+  }, []);
+
+  // Format date helper (handles ISO string startDate from MongoDB)
+  const formatDate = (dateVal, startDateVal) => {
+    const raw = dateVal || startDateVal;
+    if (!raw) return 'Date TBA';
+    try {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      return d.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return raw;
+    }
+  };
+
+  // Format price helper
+  const formatPrice = (priceVal) => {
+    if (priceVal === 0 || priceVal === '0' || priceVal === 'Free' || priceVal === 'free') return 'Free';
+    if (!priceVal) return 'Free';
+    return !isNaN(Number(priceVal)) ? `$${priceVal}` : priceVal;
+  };
+
+  // 4. Responsive calculation for number of visible cards
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       if (width < 640) {
-        setVisibleCards(1);
+        setVisibleCards(1.05);
       } else if (width < 1024) {
-        setVisibleCards(2);
+        setVisibleCards(1.8);
       } else {
-        setVisibleCards(3);
+        setVisibleCards(2.6);
       }
     };
 
@@ -119,46 +92,36 @@ export default function FutureEventSection({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Slide Next
-  const handleNext = useCallback(() => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev + 1);
-  }, [isTransitioning]);
+  // 5. Calculate maximum scroll index
+  const totalEvents = featuredEvents.length;
+  const maxIndex = Math.max(0, Math.ceil(totalEvents - visibleCards));
 
-  // Slide Prev
-  const handlePrev = useCallback(() => {
-    if (isTransitioning) return;
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev - 1);
-  }, [isTransitioning]);
-
-  // Seamless jump without animation when reaching buffer limits
-  const handleTransitionEnd = () => {
-    setIsTransitioning(false);
-
-    // If moved past the middle set forward
-    if (currentIndex >= count * 2) {
-      setCurrentIndex((prev) => prev - count);
-    }
-    // If moved past the middle set backward
-    else if (currentIndex < count) {
-      setCurrentIndex((prev) => prev + count);
-    }
-  };
-
-  // Optional Autoplay
+  // Keep currentIndex in bounds if visibleCards or events change
   useEffect(() => {
-    if (!autoplay || isPaused) return;
+    setCurrentIndex((prev) => Math.min(prev, maxIndex));
+  }, [maxIndex]);
+
+  // 6. Slide Navigation Handlers (Simple Next / Prev)
+  const handleNext = useCallback(() => {
+    setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
+  }, [maxIndex]);
+
+  const handlePrev = useCallback(() => {
+    setCurrentIndex((prev) => (prev <= 0 ? maxIndex : prev - 1));
+  }, [maxIndex]);
+
+  // 7. Autoplay (optional)
+  useEffect(() => {
+    if (!autoplay || isPaused || totalEvents <= visibleCards) return;
 
     const timer = setInterval(() => {
       handleNext();
     }, autoplaySpeed);
 
     return () => clearInterval(timer);
-  }, [autoplay, isPaused, autoplaySpeed, handleNext]);
+  }, [autoplay, isPaused, autoplaySpeed, handleNext, totalEvents, visibleCards]);
 
-  // Touch Handlers
+  // 8. Touch & Drag Handlers for swipe support
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
     touchEndX.current = e.touches[0].clientX;
@@ -177,7 +140,6 @@ export default function FutureEventSection({
     }
   };
 
-  // Mouse Drag Handlers
   const handleMouseDown = (e) => {
     isDragging.current = true;
     dragStartX.current = e.clientX;
@@ -199,25 +161,72 @@ export default function FutureEventSection({
     setIsPaused(false);
   };
 
+  // If loading or no events, display graceful states
+  if (isLoading) {
+    return (
+      <section className={`w-full py-8 px-4 sm:px-6 lg:px-8 max-w-[1700px] mx-auto ${className}`}>
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-6">{title}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-80 bg-slate-100 animate-pulse rounded-2xl" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (totalEvents === 0) {
+    return (
+      <section className={`w-full py-12 px-4 sm:px-6 lg:px-8 max-w-[1700px] mx-auto ${className}`}>
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-6">{title}</h2>
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+          <div className="w-16 h-16 mb-4 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-8 h-8 stroke-[1.5]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+              <line x1="16" x2="16" y1="2" y2="6" />
+              <line x1="8" x2="8" y1="2" y2="6" />
+              <line x1="3" x2="21" y1="10" y2="10" />
+              <line x1="10" x2="14" y1="14" y2="18" />
+              <line x1="14" x2="10" y1="14" y2="18" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-slate-800 mb-1">No Featured Events</h3>
+          <p className="text-sm text-slate-500 max-w-sm">
+            There are no featured events scheduled at the moment. Please check back soon!
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
-      className={`w-full py-8 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-[1600px] mx-auto select-none ${className}`}
+      className={`w-full pt-1 sm:pt-2 pb-6 px-4 sm:px-6 lg:px-8 max-w-[1700px] mx-auto select-none ${className}`}
       aria-label={title}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={handleMouseLeave}
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-3.5 sm:mb-4">
         <div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900">
             {title}
           </h2>
+          {subtitle && <p className="text-slate-500 mt-0.5 text-sm sm:text-base">{subtitle}</p>}
         </div>
       </div>
 
-      {/* Carousel Outer Container */}
+      {/* Carousel Container */}
       <div
-        className="relative overflow-hidden cursor-grab active:cursor-grabbing"
+        className="relative overflow-hidden cursor-grab active:cursor-grabbing py-3 -my-2"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -226,81 +235,79 @@ export default function FutureEventSection({
       >
         {/* Carousel Track */}
         <div
-          className="flex items-stretch -mx-3 sm:-mx-4"
+          className="flex items-stretch -mx-3 sm:-mx-3.5 transition-transform duration-500 ease-out"
           style={{
             transform: `translateX(-${currentIndex * (100 / visibleCards)}%)`,
-            transition: isTransitioning
-              ? 'transform 450ms cubic-bezier(0.25, 1, 0.5, 1)'
-              : 'none',
           }}
-          onTransitionEnd={handleTransitionEnd}
         >
-          {extendedEvents.map((event, idx) => (
+          {featuredEvents.map((event, idx) => (
             <div
-              key={`${event.id}-${idx}`}
-              className="px-3 sm:px-4 shrink-0 flex flex-col"
+              key={event._id || event.id || idx}
+              className="px-3 sm:px-3.5 shrink-0 flex flex-col"
               style={{
                 width: `${100 / visibleCards}%`,
               }}
             >
               <EventCard
-                id={event.id}
-                title={event.title}
-                date={event.date}
-                location={event.location}
-                image={event.image}
-                status={event.status}
+                id={event._id || event.id}
+                eventName={event.eventName || event.title || 'Untitled Event'}
+                date={formatDate(event.date, event.startDate)}
+                location={event.location || event.venue || 'Location TBA'}
+                image={event.image || event.bannerImage || event.imageUrl}
+                status={event.status || 'En vente dès maintenant'}
                 category={event.category}
-                price={event.price}
-                href={event.href || `#event-${event.id}`}
+                price={formatPrice(event.price)}
+                href={event.href || `/events/${event._id || event.id}`}
               />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Carousel Navigation Controls (Bottom Right as shown in screenshot) */}
-      <div className="mt-6 sm:mt-8 flex items-center justify-end gap-3">
-        {/* Previous Button (Soft slate) */}
-        <button
-          type="button"
-          onClick={handlePrev}
-          aria-label="Previous events"
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-slate-200 hover:bg-slate-300 text-slate-700 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 stroke-[2.2]"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      {/* Carousel Navigation Controls (Bottom Right as in image) */}
+      {totalEvents > visibleCards && (
+        <div className="mt-4 flex items-center justify-end gap-2.5">
+          {/* Previous Button (Grey Circle) */}
+          <button
+            type="button"
+            onClick={handlePrev}
+            aria-label="Previous events"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-slate-300 hover:bg-slate-400 text-slate-700 transition-all duration-200 active:scale-95 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
           >
-            <path d="m15 18-6-6 6-6" />
-          </svg>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 stroke-[2.4]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
 
-        {/* Next Button (Vibrant Cyan #00b4d8) */}
-        <button
-          type="button"
-          onClick={handleNext}
-          aria-label="Next events"
-          className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center bg-[#00b4d8] hover:bg-[#0096c7] text-white transition-all duration-200 active:scale-95 shadow-md shadow-cyan-500/20 focus:outline-none focus:ring-2 focus:ring-[#00b4d8]/50"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-5 h-5 stroke-[2.2]"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Next Button (Cyan Circle) */}
+          <button
+            type="button"
+            onClick={handleNext}
+            aria-label="Next events"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-[#00c8e6] hover:bg-[#00b4d8] text-white transition-all duration-200 active:scale-95 shadow-md shadow-cyan-500/25 focus:outline-none focus:ring-2 focus:ring-[#00c8e6]/50"
           >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </button>
-      </div>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 stroke-[2.4]"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
+        </div>
+      )}
     </section>
   );
 }

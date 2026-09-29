@@ -81,6 +81,7 @@ export default function LoginPage() {
       const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify({
           email: formData.email.trim().toLowerCase(),
           password: formData.password,
@@ -193,3 +194,6 @@ export default function LoginPage() {
     </div>
   );
 }
+
+
+

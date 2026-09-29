@@ -18,7 +18,7 @@ import Link from 'next/link';
  */
 export default function EventCard({
   id,
-  title,
+  eventName,
   date,
   location,
   image,
@@ -29,53 +29,58 @@ export default function EventCard({
   onClick,
   className = "",
 }) {
-  const CardWrapper = href ? Link : 'div';
-  const wrapperProps = href ? { href } : {};
+  const handleClick = (e) => {
+    console.log('Event Card Clicked:', { id, eventName });
+    if (onClick) {
+      onClick(e, { id, eventName });
+    }
+  };
 
   return (
-    <div className={`h-full flex flex-col ${className}`} data-event-id={id}>
-      <div
-
-        className="group flex flex-col h-full bg-white rounded-1 sm:rounded-1 border border-slate-200/80 shadow-sm  hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer focus:outline-none"
-      >
+    <div
+      className={`h-full flex flex-col ${className}`}
+      data-event-id={id}
+      onClick={handleClick}
+    >
+      <div className="group flex flex-col h-full bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer focus:outline-none">
         {/* Event Banner Image */}
-        <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] overflow-hidden bg-slate-100">
+        <div className="relative w-full aspect-[16/8.5] overflow-hidden bg-slate-100">
           <img
             src={image || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=800&auto=format&fit=crop"}
-            alt={title || "Event Image"}
+            alt={eventName || "Event Image"}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
             loading="lazy"
           />
           {category && (
-            <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-md text-slate-900 text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
+            <span className="absolute top-2.5 left-2.5 bg-white/95 backdrop-blur-md text-slate-900 text-[11px] font-semibold px-2.5 py-0.5 rounded-full shadow-sm">
               {category}
             </span>
           )}
           {price && (
-            <span className="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-md text-white text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+            <span className="absolute bottom-2.5 right-2.5 bg-slate-950/85 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow-sm">
               {price}
             </span>
           )}
         </div>
 
         {/* Card Content */}
-        <div className="p-5 sm:p-6 flex flex-col flex-1 justify-between gap-4">
-          <div className="space-y-3">
+        <div className="p-4 sm:p-4.5 flex flex-col flex-1 justify-between gap-3">
+          <div className="space-y-2">
             {/* Event Title */}
             <h3
-              className="text-base sm:text-lg font-bold text-slate-900 leading-snug line-clamp-2 uppercase tracking-wide  transition-colors min-h-[2.8rem]"
-              title={title}
+              className="text-sm sm:text-base lg:text-lg font-extrabold text-slate-900 leading-snug line-clamp-2 uppercase tracking-wide transition-colors min-h-[2.4rem] sm:min-h-[2.7rem]"
+              title={eventName}
             >
-              {title}
+              {eventName}
             </h3>
 
             {/* Event Meta Details */}
-            <div className="space-y-2 pt-1">
+            <div className="space-y-1.5 pt-0.5">
               {/* Date */}
-              <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-500 font-medium">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="w-4 h-4 text-slate-400 shrink-0"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -93,10 +98,10 @@ export default function EventCard({
               </div>
 
               {/* Location */}
-              <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-500 font-medium">
+              <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-500 font-medium">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="w-4 h-4 text-slate-400 shrink-0"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -113,26 +118,10 @@ export default function EventCard({
             </div>
           </div>
 
-          {/* Bottom Divider & Status / Action */}
-          <div className="pt-4 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm">
-            <span className="text-slate-700 font-medium text-xs sm:text-sm">
-              {status}
-            </span>
-            <span className="text-primary opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 font-semibold text-xs flex items-center gap-1">
-              Détails
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-3.5 h-3.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-              </svg>
+          {/* Bottom Status */}
+          <div className="pt-1.5 flex items-center justify-between text-xs sm:text-sm">
+            <span className="text-slate-900 font-bold tracking-tight">
+              {status || "En vente dès maintenant"}
             </span>
           </div>
         </div>
