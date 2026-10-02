@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query'
 import EventCard from './EventCard';
 
 export default function FutureEventSection({
   title = 'Featured events',
   subtitle,
   autoplay = true,
-  autoplaySpeed = 1000,
+  autoplaySpeed = 3000,
   className = '',
 }) {
   // 1. State to store the events from the backend
@@ -24,31 +25,52 @@ export default function FutureEventSection({
   const isDragging = useRef(false);
   const dragStartX = useRef(0);
 
-  // 3. Fetch public events from API on mount
+
+  const { isPending, isError, data, error } = useQuery({
+    queryKey: ['featuredEvents'],
+    staleTime:1000 * 60 * 60 * 24,
+    refetchInterval: 1000 * 60 * 60 * 24,
+    queryFn: async () => {
+      const result = await fetch('http://localhost:5000/api/events/public');
+      const json = await result.json();
+      return Array.isArray(json) ? json : json.data || json.events || [];
+    },
+  })
+
   useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        setIsLoading(true);
-        const res = await fetch('http://localhost:5000/api/events/public');
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const json = await res.json();
-        // The API returns { success: true, data: [...] } or array directly
-        const eventsArray = Array.isArray(json)
-          ? json
-          : json.data || json.events || [];
+  if (data) {
+    setFeaturedEvents(data);
+  }
+}, [data]);
+  
+  
 
-        setFeaturedEvents(eventsArray);
-      } catch (err) {
-        console.error('Failed to fetch public events:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    fetchEvents();
-  }, []);
+  // 3. Fetch public events from API on mount
+  // useEffect(() => {
+  //   const fetchEvents = async () => {
+  //     try {
+  //       setIsLoading(true);
+  //       const res = await fetch('http://localhost:5000/api/events/public');
+  //       if (!res.ok) {
+  //         throw new Error(`HTTP error! status: ${res.status}`);
+  //       }
+  //       const json = await res.json();
+  //       // The API returns { success: true, data: [...] } or array directly
+  //       const eventsArray = Array.isArray(json)
+  //         ? json
+  //         : json.data || json.events || [];
+
+  //       setFeaturedEvents(eventsArray);
+  //     } catch (err) {
+  //       console.error('Failed to fetch public events:', err);
+  //     } finally {
+  //       setIsLoading(false);
+  //     }
+  //   };
+
+  //   fetchEvents();
+  // }, []);
 
   // Format date helper (handles ISO string startDate from MongoDB)
   const formatDate = (dateVal, startDateVal) => {
@@ -162,13 +184,13 @@ export default function FutureEventSection({
   };
 
   // If loading or no events, display graceful states
-  if (isLoading) {
+  if (isPending) {
     return (
       <section className={`w-full py-8 px-4 sm:px-6 lg:px-8 max-w-[1700px] mx-auto ${className}`}>
         <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-6">{title}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-80 bg-slate-100 animate-pulse rounded-2xl" />
+            <div key={i} className="h-80 bg-slate-200 animate-pulse rounded-2xl" />
           ))}
         </div>
       </section>

@@ -42,7 +42,7 @@ export default function EventCard({
       data-event-id={id}
       onClick={handleClick}
     >
-      <div className="group flex flex-col h-full bg-white rounded-2xl border border-slate-200/90 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer focus:outline-none">
+      <div className="group flex flex-col h-full rounded-sm border border-slate-200/90 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 overflow-hidden cursor-pointer focus:outline-none">
         {/* Event Banner Image */}
         <div className="relative w-full aspect-[16/8.5] overflow-hidden bg-slate-100">
           <img
