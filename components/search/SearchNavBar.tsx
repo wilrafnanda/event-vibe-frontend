@@ -1,7 +1,12 @@
+'use client';
+
 import React from 'react'
 import Link from "next/link";
+import { useAuth } from '@/context/AuthContext';
 
 export default function SearchNavBar() {
+  const { isAuthenticated, logout } = useAuth();
+
   return (
     <header className="w-full bg-white border-b border-slate-200 sticky top-0 z-50">
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
@@ -37,11 +42,14 @@ export default function SearchNavBar() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-log-in" aria-hidden="true"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>
                     {/* <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="external-link" aria-hidden="true" className="lucide lucide-external-link w-3.5 h-3.5 stroke-[2.5]"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg> */}
                 </Link>
-                <Link className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-950 hover:bg-[#8b5cf6] text-white font-semibold text-xs sm:text-sm transition-colors duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#8b5cf6]" href="/auth/login">
-                    <span className="">Se connecter</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
-                    {/* <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" data-lucide="arrow-right" aria-hidden="true" className="lucide lucide-arrow-right w-4 h-4 stroke-[2.5]"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg> */}
-                </Link>
+                {!isAuthenticated ? (
+                  <Link className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-950 hover:bg-[#8b5cf6] text-white font-semibold text-xs sm:text-sm transition-colors duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#8b5cf6]" href="/auth/login">
+                      <span className="">Se connecter</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-right" aria-hidden="true"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                  </Link>
+                ) : (
+                  <></>
+                )}
             </div>
     </div>
     </header>

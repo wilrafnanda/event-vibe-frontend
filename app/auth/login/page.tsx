@@ -7,6 +7,10 @@ import Button from "@/components/ui/Button";
 import InputField from "@/components/ui/InputField";
 import AuthHeader from "@/components/auth/AuthHeader";
 import AuthFooter from "@/components/auth/AuthFooter";
+import { useQueryClient } from '@tanstack/react-query';
+
+
+
 
 interface FormData {
   email: string;
@@ -19,6 +23,7 @@ interface FieldErrors {
 }
 
 export default function LoginPage() {
+  const queryClient = useQueryClient();
   const router = useRouter();
 
   const [formData, setFormData] = useState<FormData>({
@@ -116,6 +121,13 @@ export default function LoginPage() {
 
         setServerError(errorMessage);
         return;
+      }
+
+      console.log("Login response:", data);
+      if (data?.user) {
+        queryClient.setQueryData(['authUser'], data.user);
+      } else {
+        await queryClient.invalidateQueries({ queryKey: ['authUser'] });
       }
 
       const token = data?.token || data?.accessToken;
